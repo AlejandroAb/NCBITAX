@@ -1,0 +1,25 @@
+com.mysql.jdbc.SQLError --> 1074
+com.mysql.jdbc.MysqlIO --> 4120
+com.mysql.jdbc.MysqlIO --> 4052
+com.mysql.jdbc.MysqlIO --> 925
+com.mysql.jdbc.MysqlIO --> 1704
+com.mysql.jdbc.MysqlIO --> 1250
+com.mysql.jdbc.ConnectionImpl --> 2465
+com.mysql.jdbc.ConnectionImpl --> 2498
+com.mysql.jdbc.ConnectionImpl --> 2283
+com.mysql.jdbc.ConnectionImpl --> 822
+com.mysql.jdbc.JDBC4Connection --> 47
+sun.reflect.NativeConstructorAccessorImpl --> -2
+sun.reflect.NativeConstructorAccessorImpl --> 62
+sun.reflect.DelegatingConstructorAccessorImpl --> 45
+java.lang.reflect.Constructor --> 423
+com.mysql.jdbc.Util --> 411
+com.mysql.jdbc.ConnectionImpl --> 404
+com.mysql.jdbc.NonRegisteringDriver --> 317
+java.sql.DriverManager --> 664
+java.sql.DriverManager --> 247
+database.Conexion --> 53
+database.Transacciones --> 95
+database.Transacciones --> 43
+ncbitax.Mapptaxids --> 189
+
