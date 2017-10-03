@@ -21,19 +21,21 @@ public class NCBIloader {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-         String database = "ncbitax";
+        /* String database = "ncbitax";
         String user = "root";
         String host = "localhost";
         String password = "amorphis";
-        /*String database = "taxomap";
+         */
+        String database = "taxomap";
         String user = "aabdala";
         String host = "localhost";
         String password = "guest@nioz";
-*/
+
         String log = "";
         String nodes = "";
         String names = "";
         String merge = "";
+        String mode = "";
         if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")) {
             System.out.println(help());
             System.exit(0);
@@ -44,7 +46,7 @@ public class NCBIloader {
                     i++;
                     nodes = args[i];
                 } catch (ArrayIndexOutOfBoundsException aoie) {
-                    System.err.println("Argument expected for nodes dmp file \nNeed help? use ncbiloader -h | --help");
+                    System.err.println("Argument expected for nodes dmp file \nNeed help? use java ncbitax.NCBIloader -h | --help");
                     System.exit(1);
 
                 }
@@ -53,7 +55,7 @@ public class NCBIloader {
                     i++;
                     names = args[i];
                 } catch (ArrayIndexOutOfBoundsException aoie) {
-                    System.err.println("Argument expected for names dmp file \nNeed help? use ncbiloader -h | --help");
+                    System.err.println("Argument expected for names dmp file \nNeed help? use java ncbitax.NCBIloader -h | --help");
                     System.exit(1);
 
                 }
@@ -62,7 +64,16 @@ public class NCBIloader {
                     i++;
                     merge = args[i];
                 } catch (ArrayIndexOutOfBoundsException aoie) {
-                    System.err.println("Argument expected for merge dmp file \nNeed help? use ncbiloader -h | --help");
+                    System.err.println("Argument expected for merge dmp file \nNeed help? use java ncbitax.NCBIloader -h | --help");
+                    System.exit(1);
+
+                }
+            } else if (args[i].equals("-M") || args[i].equals("--MODE")) {
+                try {
+                    i++;
+                    mode = args[i];
+                } catch (ArrayIndexOutOfBoundsException aoie) {
+                    System.err.println("Argument expected for -M option \nNeed help? use java ncbitax.NCBIloader -h | --help");
                     System.exit(1);
 
                 }
@@ -71,7 +82,7 @@ public class NCBIloader {
                     i++;
                     user = args[i];
                 } catch (ArrayIndexOutOfBoundsException aoie) {
-                    System.err.println("Argument expected for --user option \nNeed help? use Mapptaxids -h | --help");
+                    System.err.println("Argument expected for --user option \nNeed help? use java ncbitax.NCBIloader -h | --help");
                     System.exit(1);
 
                 }
@@ -80,7 +91,7 @@ public class NCBIloader {
                     i++;
                     password = args[i];
                 } catch (ArrayIndexOutOfBoundsException aoie) {
-                    System.err.println("Argument expected for --pass option \nNeed help? use Mapptaxids -h | --help");
+                    System.err.println("Argument expected for --pass option \nNeed help? use java ncbitax.NCBIloader -h | --help");
                     System.exit(1);
 
                 }
@@ -89,20 +100,45 @@ public class NCBIloader {
                     i++;
                     database = args[i];
                 } catch (ArrayIndexOutOfBoundsException aoie) {
-                    System.err.println("Argument expected for --database option \nNeed help? use Mapptaxids -h | --help");
+                    System.err.println("Argument expected for --database option \nNeed help? use java ncbitax.NCBIloader -h | --help");
                     System.exit(1);
 
                 }
             }
         }
-        if (!nodes.equals("") && !names.equals("")) {
+        if (mode.equals("LOAD")) {
+            if (!nodes.equals("") && !names.equals("") && !merge.equals("")) {
+                Transacciones transacciones = new Transacciones(database, user, host, password);
+                NCBITaxCreator ncbi = new NCBITaxCreator(transacciones);
+                log += ncbi.createTaxaListFromNCBI(nodes, names, true);
+                ncbi.loadMergedTaxs(merge);
+            } else {
+                System.err.println("MODE=LOAD This mode requires -n nodes.dmp -a names.dmp and -m merged.dmp files");
+            }
+
+        } else if (mode.equals("MERGE")) {
+            if (!merge.equals("")) {
+                Transacciones transacciones = new Transacciones(database, user, host, password);
+                NCBITaxCreator ncbi = new NCBITaxCreator(transacciones);
+                ncbi.loadMergedTaxs(merge);
+            } else {
+                System.err.println("MODE=MERGE This mode requires -m merged.dmp file");
+            }
+        } else if (mode.equals("UPDATE")) {
+            if (!nodes.equals("") && !names.equals("") && !names.equals("")) {
+                Transacciones transacciones = new Transacciones(database, user, host, password);
+                NCBITaxCreator ncbi = new NCBITaxCreator(transacciones);
+                log += ncbi.updateTaxaListFromNCBI(nodes, names, true);
+                ncbi.loadMergedTaxs(merge);
+            } else {
+                System.err.println("MODE=UPDATE This mode requires -n nodes.dmp -a names.dmp and -m merged.dmp files");
+            }
+        } else if (mode.equals("TAXON")) {
             Transacciones transacciones = new Transacciones(database, user, host, password);
             NCBITaxCreator ncbi = new NCBITaxCreator(transacciones);
-            log += ncbi.createTaxaListFromNCBI(nodes, names, true);
-        } else if (!merge.equals("")) {
-            Transacciones transacciones = new Transacciones(database, user, host, password);
-            NCBITaxCreator ncbi = new NCBITaxCreator(transacciones);
-            ncbi.loadMergedTaxs(merge);            
+            ncbi.createTaxon("",false,"");
+        } else {
+            System.err.println("Incorrect mode operand. It should be one from: LOAD, MERGE, UPDATE \nNeed help? use java ncbitax.NCBIloader -h | --help");
         }
     }
 
@@ -112,8 +148,18 @@ public class NCBIloader {
                 + "###                    v 2.0                      ###\n"
                 + "###                             @author A. Abdala ###\n"
                 + "####################################################\n\n"
-                + "usage java ncbitax.ncbiloader -n NCBI_NODES_FILE.dmp -a NCBI_NAMES_FILE.dmp\n\n"
-                + "-----   The help menu is under development    ------";
+                + "Usage java ncbitax.NCBIloader -M MODE [options according to MODE]\n"
+                + "This program works with taxonomy database dump files from NCBI which can be downloaded from:\n"
+                + "ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.(zip|tar.gz)\n"
+                + "Modes:\n"
+                + "\tLOAD\tThis option loads database from scratch.\n\t\tIt requires -n -a -m arguments\n"
+                + "\tUPDATE\tThis option updates the database.\n\t\tIt requires -n -a -m arguments\n"
+                + "\tMERGE\tThis option update the merge table for merged taxons.\n\t\tIt only requires -m argument\n"
+                + "\tTAXON\tThis option update/populate taxon table. This option doesn't need any argument\n"
+                + "Arguments:\n"
+                + "  -n\t--nodes\tNCBI nodes.dmp file.\n"
+                + "  -a\t--names\tNCBI names.dmp file.\n"
+                + "  -m\t--merge\tNCBI merged.dmp file.\n";
 
         return help;
     }

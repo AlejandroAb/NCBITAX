@@ -173,7 +173,7 @@ public class Conexion {
      */
     public boolean queryUpdate(String peticion) { //recive el query a ejecutarse
         try {
-            // statement = connection.createStatement(); //ingresa a la bd
+             statement = connection.createStatement(); //ingresa a la bd
             estatus = statement.executeUpdate(peticion); //ejecuta la petición
             if (estatus != 0) { //ejecutar un query regresa una bandera, si esta es igual a 1
                 //significa que se realizó con exito

@@ -115,6 +115,12 @@ public class Transacciones {
         }
     }
 
+    /**
+     * This method get all taxonomy node information given a condition
+     *
+     * @param where the condition for retrieving the taxonomy nodes
+     * @return an ArrayList of nodes
+     */
     public ArrayList<ArrayList> getNCBINodes(String where) {
         String query = "SELECT ncbi_node.tax_id, ncbi_node.rank, ncbi_node.name, hierarchy FROM ncbi_node " + where;
         conexion.executeStatement(query);
@@ -140,6 +146,19 @@ public class Transacciones {
     }
 
     /**
+     * This method provid a query interface to find the full hierarchy (with
+     * comma separated taxids), gicen a target taxid node
+     *
+     * @param taxid
+     * @return the complete taxids linage to the given node
+     */
+    public ArrayList getHirarchyAndNameByTaxid(String taxid) {
+        String query = "SELECT name, hierarchy, rank FROM ncbi_node WHERE tax_id = " + taxid;
+        conexion.executeStatement(query);
+        return conexion.getTabla();
+    }
+
+    /**
      * Method to see if a taxid has been merged into other node
      *
      * @param taxid the tax id to be tested
@@ -147,6 +166,22 @@ public class Transacciones {
      */
     public String testForMergeTaxid(String taxid) {
         String query = "SELECT tax_id FROM ncbi_merged WHERE old_tax_id = " + taxid;
+        conexion.executeStatement(query);
+        if (conexion.getTabla() != null && conexion.getTabla().size() > 0) {
+            return (String) conexion.getTabla().get(0).get(0);
+        } else {
+            return "";
+        }
+    }
+
+    /**
+     * Method to test if a taxid exists on the ncbi_node table
+     *
+     * @param taxid
+     * @return
+     */
+    public String testForTaxid(String taxid) {
+        String query = "SELECT tax_id FROM ncbi_node WHERE tax_id = " + taxid;
         conexion.executeStatement(query);
         if (conexion.getTabla() != null && conexion.getTabla().size() > 0) {
             return (String) conexion.getTabla().get(0).get(0);
@@ -164,6 +199,17 @@ public class Transacciones {
         }
     }
 
+    /**
+     * This query retrieves a taxon names string, given a list of tax ids comma
+     * separated
+     *
+     * @param taxidHierarchy comma separated list as the one on hierarchy field
+     * of ncbi_node table
+     * @param extra any extra where condition (like the desired taxonomy ranks)
+     * @param sep char separator for the return list.
+     * @return list whit all the names on the same order as the taxidHierarchy
+     * list and separated by sep
+     */
     public String getLiteralTaxonomy(String taxidHierarchy, String extra, String sep) {
         String query = "SELECT GROUP_CONCAT(name ORDER BY FIELD(tax_id, " + taxidHierarchy + ") SEPARATOR '" + sep + "') "
                 + "FROM ncbi_node WHERE tax_id IN (" + taxidHierarchy + ") " + extra;
@@ -173,6 +219,21 @@ public class Transacciones {
         } else {
             return "";
         }
+    }
+
+    /**
+     * Gets all the taxons with tax_id, tax_name and rank given a taxid list
+     *
+     * @param taxidHierarchy comma separated list as the one on hierarchy field
+     * of ncbi_node table
+     * @param extra any extra where condition (like the desired taxonomy ranks)
+     * @return
+     */
+    public ArrayList getTaxonomybyTaxIDList(String taxidHierarchy, String extra) {
+        String query = "SELECT tax_id, rank, name FROM ncbi_node "
+                + "WHERE tax_id IN (" + taxidHierarchy + ") " + extra;
+        conexion.executeStatement(query);
+        return conexion.getTabla();
     }
 
     public boolean insertaQuery(String query) {

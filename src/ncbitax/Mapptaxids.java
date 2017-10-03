@@ -10,21 +10,31 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 /**
+ * This program is created to work as an interface between the user and the
+ * taxonomy database. It offers multiple options in order to allow the user
+ * create different mapping files, as well as retrieve taxonomic linage, LCA,
+ * among other utilities.
  *
  * @author aabdala
  */
 public class Mapptaxids {
 
+    /**
+     * Main method
+     *
+     * @param args arguments, run program with -h or --help
+     */
     public static void main(String[] args) {
-        /*String database = "taxomap";
+        String database = "taxomap";
         String user = "aabdala";
         String host = "localhost";
         String password = "guest@nioz";
-        */
+        /*
         String user = "root";
         String host = "localhost";
         String password = "amorphis";
         String database = "ncbitax";
+         */
         String log = "";
         String mappFile = "";
         String fastaFile = "";
@@ -40,6 +50,7 @@ public class Mapptaxids {
         boolean appendTaxID = false;
         boolean withHashMap = false;
         int taxCol = -1;//which column of the spplited line contains the taxid (from 1)
+        int accCol = -1;//which column of the spplited line contains the acc (from 1)
         if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")) {
             System.out.println(help());
             System.exit(0);
@@ -136,7 +147,7 @@ public class Mapptaxids {
                     System.exit(1);
 
                 }
-            } else if (args[i].equals("-c") || args[i].equals("--column")) {
+            } else if (args[i].equals("-tc") || args[i].equals("--tax-column")) {
                 try {
                     i++;
                     taxCol = Integer.parseInt(args[i]);
@@ -145,7 +156,20 @@ public class Mapptaxids {
                     System.err.println("Argument expected for -c option \nNeed help? use Mapptaxids -h | --help");
                     System.exit(1);
                 } catch (NumberFormatException nfe) {
-                    System.err.println("Numeric argument expected for -c option \nNeed help? use Mapptaxids -h | --help");
+                    System.err.println("Numeric argument expected for -tc option \nNeed help? use Mapptaxids -h | --help");
+                    System.exit(1);
+
+                }
+            } else if (args[i].equals("-ac") || args[i].equals("--acc-column")) {
+                try {
+                    i++;
+                    accCol = Integer.parseInt(args[i]);
+
+                } catch (ArrayIndexOutOfBoundsException aoie) {
+                    System.err.println("Argument expected for -ac option \nNeed help? use Mapptaxids -h | --help");
+                    System.exit(1);
+                } catch (NumberFormatException nfe) {
+                    System.err.println("Numeric argument expected for -ac option \nNeed help? use Mapptaxids -h | --help");
                     System.exit(1);
 
                 }
@@ -184,7 +208,7 @@ public class Mapptaxids {
                 System.exit(1);
             }
         }
-        if ((!mappFile.equals("") && !fastaFile.equals("") && !mode.equals("DB")) || (!mappFile.equals("") && mode.equals("DB")) || (!mappFile.equals("") && fastaFile.equals("") && mode.equals("MERGED"))) {
+        if ((!mappFile.equals("") && !fastaFile.equals("") && !mode.equals("DB")) || (!mappFile.equals("") && mode.equals("DB")) || (!mappFile.equals("") && fastaFile.equals("") && mode.equals("MERGED")) || (!mappFile.equals("") && mode.equals("QIIME"))) {
             Transacciones transacciones = new Transacciones(database, user, host, password);
             // NCBITaxCreator ncbi = new NCBITaxCreator(transacciones);
             // log += ncbi.createTaxaListFromNCBI(nodes, names,true);
@@ -203,6 +227,9 @@ public class Mapptaxids {
             if (taxCol > 0) {
                 fmapp.setTaxIDCol(taxCol);
             }
+            if (accCol > 0) {
+                fmapp.setAccCol(accCol);
+            }
             if (split.length() > 0) {
                 fmapp.setSplitChars(split);
             }
@@ -215,9 +242,16 @@ public class Mapptaxids {
                 } else if (mode.equals("BATCH")) {
                     fmapp.mappBulkTaxIDs(batch);
                 } else if (mode.equals("DB")) {
-                    fmapp.completeTaxa();
+                    if (fmapp.getRankType().equals("CLASSIC")) {
+                        fmapp.completeTaxaQiime(false);
+                    } else {
+                        fmapp.completeTaxa();
+                    }
+
                 } else if (mode.equals("MERGED")) {
                     fmapp.processNotAtDB();
+                } else if (mode.equals("QIIME")) {
+                    fmapp.completeTaxaQiime(true);
                 } else {
                     System.err.println("Wrong mode: " + mode + "\nValid modes are: SINGLE, BATCH and DB. Need help? use Mapptaxids -h | --help");
                     System.exit(1);
@@ -233,10 +267,15 @@ public class Mapptaxids {
         }
     }
 
+    /**
+     * Method to display the help menu
+     *
+     * @return
+     */
     private static String help() {
         String help = "\n#######################################################\n"
                 + "###            NCBI TAXONOMI MAPPER                 ###\n"
-                + "###                    v 1.0                        ###\n"
+                + "###                    v 1.4                        ###\n"
                 + "###                             @company       NIOZ ###\n"
                 + "###                             @author   A. Abdala ###\n"
                 + "#######################################################\n\n"
@@ -246,15 +285,18 @@ public class Mapptaxids {
                 + "  -m\t--map\tMapping file with correspondance between accession numbers and tax ids. This kind of files can be found at: ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/accession2taxid/README\n"
                 + "  -f\t--fasta\tFasta file with the accession number to be mapped against tax id. Only for mode DB it is not mandatory!\n"
                 + "\nOptional arguments:\n"
-                + "  -c\t--column\tThe column on the mapping file were the taxid is found (def value equal to NCBI mapping files default col = 3)\n"
+                + "  -tc\t--tax-column\tThe column on the mapping file were the taxid is found (def value equal to NCBI mapping files default col = 3)\n"
+                + "  -ac\t--acc-column\tThe column on the mapping file were the accession number is found (def value equal to NCBI mapping files default col = 2)\n"
                 + "  -o\t--output\tName of the output file\n"
                 + "  -e\t--sep\tChar to separate taxonomic levels. Default is ';'\n"
+                + "  -s\t--split\tChar or regex to split mapping file. Default is tab '\\t'\n"
                 + "  -n\t--not-fasta\tIf the input file to be mapped is not a fasta file, it should be a file with a list of accessions on that case, use this flag\n"
                 + "  -b\t--batch\tUsed on BATCH mode. Number of elements to be searched on one single grep.\n"
                 + "  -M\t--mode\tThis flag determines the search strategy. Valid option are:"
                 + "\n  \t\tSINGLE Default value. Needs the mapping file and the fasta file. Performs the search by grepping element per element"
                 + "\n  \t\tBATCH Needs the mapping file and the fasta file. Performs the search by grepping A BATCH of elements. The default batch number is ten but can by changed with -b or --batch options"
                 + "\n  \t\tDB This option suppose that the user already have a mapped file with only all the required accessions and tax ids, so it only takes the maping file and search for the taxonomic information into the DB."
+                + "\n  \t\tQIIME This option suppose that the user already have a mapped file with only all the required accessions and tax ids, so it only takes the maping file and search for the taxonomic information into the DB and create a mapping file like the one required for QIIME assign_taxonomy.py script."
                 + "\n  \t\tMERGED This option takes as input the mapping file, which in this case should be the output file generated when the tax id is not found on reference DB, on this cases the file extension is '.not_at_db'.\n"
                 + "  -t\t--taxid\tIf this flag is present the output file will contain an extra column with the taxid of the linage\n"
                 + "  -h\t--hash\tIf this flag is present the program will use HashMap to reduce overhead on database access. IN order to use this option be sure to have enough memory. If you use this option posible HeapOverflowException\n"

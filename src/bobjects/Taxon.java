@@ -44,7 +44,22 @@ public class Taxon {
     private String no_rank = "";
 
     public Taxon(int tax_id) {
+        //new Taxon(tax_id, false);
         this.tax_id = tax_id;
+
+    }
+
+    public Taxon(int tax_id, boolean qiime) {
+        this.tax_id = tax_id;
+        if (qiime) {
+            this.kingdom = "k__";
+            this.phylum = "p__";
+            this.classe = "c__";
+            this.order = "o__";
+            this.family = "f__";
+            this.genus = "g__";
+            this.species = "s__";
+        }
     }
 
     public int getTax_id() {
@@ -295,9 +310,35 @@ public class Taxon {
         this.no_rank = no_rank;
     }
 
+    /**
+     * Create and return a insert sql representation of this string
+     *
+     * @return
+     */
     public String toSQLString() {
         String query = "INSERT INTO taxon (tax_id, taxon, rank, kingdom, subkingdom, superphylum, phylum, subphylum, superclass, infraclass, class, subclass, parvorder, superorder, infraorder, orden, suborder, superfamily, family, subfamily, tribe, subtribe, genus, subgenus, species, species_group, species_subgroup, subspecies, forma, varietas, no_rank, degradadora) "
                 + "VALUES (" + tax_id + ",'" + taxon + "','" + rank + "','" + kingdom + "','" + subkingdom + "','" + superphylum + "','" + phylum + "','" + subphylum + "','" + superclass + "','" + infraclass + "','" + classe + "','" + subclass + "','" + parvorder + "','" + superorder + "','" + infraorder + "','" + order + "','" + suborder + "','" + superfamily + "','" + family + "','" + subfamily + "','" + tribe + "','" + subtribe + "','" + genus + "','" + subgenus + "','" + species + "','" + species_group + "','" + species_subgroup + "','" + subspecies + "','" + forma + "','" + varietas + "','" + no_rank + "',0)";
+        return query;
+    }
+
+    /**
+     * Create and return a string with qiime name format
+     *
+     * @return
+     */
+    public String toQiimeString() {
+        String query = kingdom + "; " + phylum + "; " + classe + "; " + order + "; " + family + "; " + genus + "; " + species;
+        return query;
+    }
+
+    /**
+     * Create String with all the classic taxonomyNames and leave blank spaces
+     * when there is no level
+     *
+     * @return
+     */
+    public String toClassicString() {
+        String query = kingdom + "; " + phylum + "; " + classe + "; " + order + "; " + family + "; " + genus + "; " + species;
         return query;
     }
 
@@ -387,6 +428,43 @@ public class Taxon {
             case "no_rank":
                 this.no_rank += name;
                 break;
+        }
+    }
+
+    /**
+     * This method assign taxonomy levels according to qiime nomenclature
+     * template (qiime/97_otu_taxonomy.txt)
+     *
+     * @param name the name of the taxon
+     * @param rank the rank of such taxon
+     */
+    public void assignQiimeRank(String name, String rank) {
+        switch (rank) {
+            case "kingdom":
+                this.kingdom = kingdom + (name);
+                break;
+
+            case "phylum":
+                this.phylum = phylum + (name);
+                break;
+
+            case "class":
+                this.classe = classe + (name);
+                break;
+
+            case "order":
+                this.order = order + (name);
+                break;
+            case "family":
+                this.family = family + (name);
+                break;
+            case "genus":
+                this.genus = genus + (name);
+                break;
+            case "species":
+                this.species = species + (name);
+                break;
+
         }
     }
 }

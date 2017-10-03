@@ -5,6 +5,7 @@
  */
 package ncbitax;
 
+import bobjects.Taxon;
 import database.Transacciones;
 import java.io.BufferedReader;
 import java.io.File;
@@ -15,15 +16,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import utils.StringUtils;
 
 /**
  * This class is created to map a accessions ids to tax ids according to NCBI
- * nucleotide database and NCBI's Taxonomi DB According to The expecting mapping
- * files for this programs can be downloaded from:
+ * nucleotide database and NCBI's Taxonomi DB. The expecting mapping files for
+ * this programs can be downloaded from:
  * ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/accession2taxid/README The NCBI
  * mapping files to taxids conteins the following format accession -tab-
  * accession.version -tab- taxid -tab- gi
@@ -62,9 +65,18 @@ public class NCBIFastaMapping {
      * this attribs.
      */
     int taxIDCol = 3;// non zero index
+    int accCol = 2;
 
     public boolean isDebug() {
         return debug;
+    }
+
+    public int getAccCol() {
+        return accCol;
+    }
+
+    public void setAccCol(int accCol) {
+        this.accCol = accCol;
     }
 
     public void setDebug(boolean debug) {
@@ -87,6 +99,13 @@ public class NCBIFastaMapping {
         this.taxIDCol = taxIDCol;
     }
 
+    /**
+     * Contructor for this class
+     *
+     * @param mappingFile the file with accessions and tax ids
+     * @param fastaFile a fasta file with the accessions
+     * @param transacciones The interface for the DB
+     */
     public NCBIFastaMapping(String mappingFile, String fastaFile, Transacciones transacciones) {
         this.mappingFile = mappingFile;
         this.fastaFile = fastaFile;
@@ -142,9 +161,9 @@ public class NCBIFastaMapping {
     }
 
     /**
-     * This method takes both files mapping and fasta and process the fasta file
-     * line by line, extract the accession and runs grep one by one agains the
-     * mapping
+     * This method takes both files: mapping and fasta file. It process the
+     * fasta file line by line, extract the accession and runs grep one by one
+     * against the mapping
      *
      * @throws FileNotFoundException
      * @throws IOException
@@ -273,7 +292,8 @@ public class NCBIFastaMapping {
      * accessions into this file, the program will create an output file with
      * accession <delim> linage. This method is a shortcut when working with
      * files very big. So the mapping is done by greps LIKE: grep -F -f
-     * all_accession.txt nucl_gb.accession2taxid > mapFile.txt
+     * all_accession.txt nucl_gb.accession2taxid > mapFile.txt. With the new
+     * proccessing method,
      *
      * @throws FileNotFoundException
      * @throws IOException
@@ -309,21 +329,28 @@ public class NCBIFastaMapping {
                 // String accession = splitLine[1];//usually on column2 make it a param!
                 if (taxoMapp.containsKey(splitLine[taxIDCol - 1])) {
                     if (appendTaxid) {
-                        mappwriter.write(splitLine[1] + outSep + taxoMapp.get(splitLine[taxIDCol - 1]) + outSep + splitLine[taxIDCol - 1] + "\n");
+                        mappwriter.write(splitLine[accCol - 1] + outSep + taxoMapp.get(splitLine[taxIDCol - 1]) + outSep + splitLine[taxIDCol - 1] + "\n");
                     } else {
-                        mappwriter.write(splitLine[1] + outSep + taxoMapp.get(splitLine[taxIDCol - 1]) + "\n");
+                        mappwriter.write(splitLine[accCol - 1] + outSep + taxoMapp.get(splitLine[taxIDCol - 1]) + "\n");
                     }
                     oks++;
                 } else {
                     String taxid = splitLine[taxIDCol - 1];
                     String hierarchy = transacciones.getHirarchyByTaxid(taxid);
+                    //look for merged nodes
+                    if (hierarchy.length() == 0 && !taxid.equals("0")) {
+                        taxid = getMergedTaxID(taxid);
+                        if (taxid.length() > 0) {
+                            hierarchy = transacciones.getHirarchyByTaxid(taxid);
+                        }
+                    }
                     //String hierarchy = transacciones.getHierarcheByTaxIDPrepared(Integer.parseInt(taxid.trim()));
                     if (hierarchy.length() > 0) {
                         String taxonomy = transacciones.getLiteralTaxonomy(hierarchy + "," + taxid, taxoLevels, sep);
                         if (appendTaxid) {
-                            mappwriter.write(splitLine[1] + outSep + taxonomy + outSep + splitLine[taxIDCol - 1] + "\n");
+                            mappwriter.write(splitLine[accCol - 1] + outSep + taxonomy + outSep + splitLine[taxIDCol - 1] + "\n");
                         } else {
-                            mappwriter.write(splitLine[1] + outSep + taxonomy + "\n");
+                            mappwriter.write(splitLine[accCol - 1] + outSep + taxonomy + "\n");
                         }
                         oks++;
                         if (withHashMap) {
@@ -331,9 +358,9 @@ public class NCBIFastaMapping {
                         }
                     } else if (taxid.equals("0") && taxID0) {
                         if (appendTaxid) {
-                            mappwriter.write(splitLine[1] + outSep + "NotAssigned" + outSep + splitLine[taxIDCol - 1] + "\n");
+                            mappwriter.write(splitLine[accCol - 1] + outSep + "NotAssigned" + outSep + splitLine[taxIDCol - 1] + "\n");
                         } else {
-                            mappwriter.write(splitLine[1] + outSep + "NotAssigned" + "\n");
+                            mappwriter.write(splitLine[accCol - 1] + outSep + "NotAssigned" + "\n");
                         }
                         oks++;
 
@@ -342,7 +369,7 @@ public class NCBIFastaMapping {
                             notAtDBWriter = new FileWriter(output + ".not_at_db");
                             notAtDBWriter.write("Acc\ttax id\n");
                         }
-                        notAtDBWriter.write(splitLine[1] + "\t" + splitLine[taxIDCol - 1] + "\n");
+                        notAtDBWriter.write(splitLine[accCol - 1] + "\t" + splitLine[taxIDCol - 1] + "\n");
                         notAtDB++;
                     }
                 }
@@ -350,7 +377,230 @@ public class NCBIFastaMapping {
                 /* String splitLine[] = linea.split(splitChars);
                 String taxid = splitLine[taxIDCol - 1];
                 String accession = splitLine[1];*/
-                System.err.println("Split line with " + splitChars + "on index: " + (taxIDCol - 1) + " or index: 1 for line: " + linea);
+                System.err.println("Split line with " + splitChars + "on index to find taxid at col: " + (taxIDCol - 1) + " or index to find acc at col: " + (accCol - 1) + " for line: " + linea);
+                if (errorWriter == null) {
+                    errorWriter = new FileWriter(output + ".err");
+                    errorWriter.write("Line\tAccession\n");
+                }
+                errors++;
+                errorWriter.write(linea + "\n");
+            }
+
+            if (headers % 50000 == 0) {
+                long current = System.currentTimeMillis();
+                //finish / 1000 + " s."
+                System.out.println("Accession numbers processed: " + headers + " Time: " + (current - counter5k) / 1000 + ".s ... Total time elapsed: " + (current - start) / 1000 + ".s");
+                counter5k = System.currentTimeMillis();
+                if (((double) oks / (double) headers) < 0.5) {
+                    System.out.println("At this point your mapping yield is not so good: " + (double) oks / (double) headers
+                            + "!!\nctrl+c if you want to stop this run and maybe check for a better mapping file!");
+                }
+            }
+
+        }
+        System.out.println("***************END***************\n"
+                + "Total time: " + (System.currentTimeMillis() - start) / 1000 + " seconds\n"
+                + "   -- files created --\n");
+        mappReader.close();
+        mappwriter.close();
+        System.out.println("\nTaxonomy mapped file: " + output);
+        if (notFoundWriter != null) {
+            notFoundWriter.close();
+            System.out.println("\nAccessions not mapped: " + output + ".not_found");
+        }
+        if (errorWriter != null) {
+            errorWriter.close();
+            System.out.println("\nError parsing mapping: " + output + ".err");
+
+        }
+        if (notAtDBWriter != null) {
+            notAtDBWriter.close();
+            System.out.println("\nTax ids not found into DB: " + output + ".not_at_db\n");
+        }
+        System.out.println("\n   -- sumary --\n"
+                + "Mapping yield: " + (double) oks / (double) headers
+                + "\nAccessions processed:" + headers
+                + "\nAccessions mapped:" + oks
+                + "\nAccessions not found on mapping file:" + notFound
+                + "\nTaxids not found on reference database:" + notAtDB
+                + "\nParsing mapping errors:" + errors);
+    }
+
+    /**
+     * This method try to read one file (the map file) which should contain at
+     * least two columns: one with the accession numbers and one with the
+     * taxids. Then with that info, this method will create taxonomy mapping
+     * files between names and access ids as the ones used by qiime for taxonomy
+     * assignation.
+     *
+     * @param forQiime if true is for qiime, and use qiime construction methods,
+     * otherwise use classic rank levels
+     * @throws FileNotFoundException If the map file doesn't exists
+     * @throws IOException input output write issues
+     */
+    public void completeTaxaQiime(boolean forQiime) throws FileNotFoundException, IOException {
+        BufferedReader mappReader = new BufferedReader(new FileReader(mappingFile));
+        Map<String, String> taxoMapp = new HashMap<String, String>();
+        //ranktype ALL = no extra
+        /*  try {
+            transacciones.getConexion().setPreparedStatemenS1("SELECT hierarchy FROM ncbi_node WHERE tax_id = ?");
+        } catch (SQLException ex) {
+            Logger.getLogger(NCBIFastaMapping.class.getName()).log(Level.SEVERE, null, ex);
+            System.err.println("SQL exp");
+        }*/
+        String taxoLevels = getDesiredLinage();
+        FileWriter mappwriter = new FileWriter(output);
+        FileWriter notFoundWriter = null;
+        FileWriter errorWriter = null;
+        FileWriter notAtDBWriter = null;
+        FileWriter notAtListWriter = null;
+        String linea;
+        int headers = 0;
+        int notFound = 0;
+        int errors = 0;
+        int notAtDB = 0;
+        int oks = 0;
+        long start = System.currentTimeMillis();
+        long counter5k = System.currentTimeMillis();
+        StringUtils su = new StringUtils();
+        while ((linea = mappReader.readLine()) != null) {
+            headers++;
+            try {
+                String splitLine[] = linea.split(splitChars);
+                //String taxid = splitLine[taxIDCol - 1];
+                // String accession = splitLine[1];//usually on column2 make it a param!
+                if (taxoMapp.containsKey(splitLine[taxIDCol - 1])) {
+                    if (appendTaxid) {
+                        mappwriter.write(splitLine[accCol - 1] + outSep + taxoMapp.get(splitLine[taxIDCol - 1]) + outSep + splitLine[taxIDCol - 1] + "\n");
+                    } else {
+                        mappwriter.write(splitLine[accCol - 1] + outSep + taxoMapp.get(splitLine[taxIDCol - 1]) + "\n");
+                    }
+                    oks++;
+                } else {
+                    String taxid = splitLine[taxIDCol - 1];
+                    ArrayList<ArrayList<String>> data = transacciones.getHirarchyAndNameByTaxid(taxid);
+                    String hierarchy = "";
+                    String taxoName = "";
+                    String tidRank = "";
+                    if (data != null && data.size() > 0) {
+                        taxoName = data.get(0).get(0);
+                        hierarchy = data.get(0).get(1);
+                        tidRank = data.get(0).get(2);
+                    }
+                    //look for merged nodes
+                    if (hierarchy.length() == 0 && !taxid.equals("0")) {
+                        taxid = getMergedTaxID(taxid);
+                        if (taxid.length() > 0) {
+                            data = transacciones.getHirarchyAndNameByTaxid(taxid);
+                            if (data != null && data.size() > 0) {
+                                taxoName = data.get(0).get(0);
+                                hierarchy = data.get(0).get(1);
+                                tidRank = data.get(0).get(2);
+                            }
+                        }
+                    }
+                    int t = 0;
+                    try {
+                        t = Integer.parseInt(taxid);
+                    } catch (NumberFormatException nfe) {
+
+                    }
+                    Taxon taxon;
+                    if (forQiime) {
+                        taxon = new Taxon(t, true);
+                    } else {
+                        taxon = new Taxon(t);
+                    }
+                    //String hierarchy = transacciones.getHierarcheByTaxIDPrepared(Integer.parseInt(taxid.trim()));
+                    if (hierarchy.length() > 0) {
+                        ArrayList<ArrayList<String>> taxonomyAl = transacciones.getTaxonomybyTaxIDList(hierarchy + "," + taxid, taxoLevels);
+                        String sk = "";
+                        for (ArrayList<String> taxones : taxonomyAl) {
+                            String rank = taxones.get(1);
+                            /**
+                             * If at the end the taxon doesn't have any kingdom
+                             * it saves the superkingdom to be assigned to it.
+                             * This could be seen on some eukaryota or virus.
+                             */
+                            if (rank.equals("superkingdom")) {
+                                sk = taxones.get(2);
+                            }
+                            if (forQiime) {
+                                taxon.assignQiimeRank(taxones.get(2), rank);
+                            } else {
+                                taxon.assignRank(taxones.get(2), rank);
+                            }
+                        }
+                        //only assign sk as k when k is empty
+                        if (taxon.getKingdom().equals("k__") || taxon.getKingdom().equals("")) {
+                            if (forQiime) {
+                                taxon.assignQiimeRank(sk, "kingdom");
+                            } else {
+                                taxon.assignRank(sk, "kingdom");
+                            }
+
+                        }
+                        /**
+                         * If doesnt contains the name of the tax_id of the
+                         * original search, concat it at the end of the string
+                         * like if it is a sub species
+                         */
+                        String taxonomy = forQiime ? taxon.toQiimeString() : taxon.toClassicString();
+                        if (!taxonomy.contains(taxoName)) {
+                            if (taxonomy.endsWith("s__") || taxonomy.endsWith(";")) {
+                                taxonomy += taxoName;
+                            } else {
+                                if (forQiime) {
+                                    taxonomy += " " + su.removeFromString(taxoName, taxon.getSpecies().trim().substring(3));
+                                } else {
+                                    taxonomy += " " + su.removeFromString(taxoName, taxon.getSpecies().trim());
+                                }
+
+                                /*if(taxoName.contains(taxon.getSpecies().trim().substring(3))){
+                                    taxonomy += taxoName.substring(taxon.getSpecies().length() + 1);
+                                }else{                                    
+                                    System.out.println(taxonomy + " ");
+                                    taxonomy += " " + taxoName; //extrange cases
+                                }*/
+                                //taxonomy += " " + taxon.getSpecies()  taxoName;
+                            }
+                            if (notAtListWriter == null) {
+                                notAtListWriter = new FileWriter(output + ".not_at_names");
+
+                            }
+                            notAtListWriter.write(tidRank + outSep + splitLine[accCol - 1] + outSep + taxonomy + outSep + splitLine[taxIDCol - 1] + "\n");
+                        }
+                        if (appendTaxid) {
+                            mappwriter.write(splitLine[accCol - 1] + outSep + taxonomy + outSep + splitLine[taxIDCol - 1] + "\n");
+                        } else {
+                            mappwriter.write(splitLine[accCol - 1] + outSep + taxonomy + "\n");
+                        }
+                        oks++;
+                        if (withHashMap) {
+                            taxoMapp.put(splitLine[taxIDCol - 1], taxonomy);
+                        }
+                    } else if (taxid.equals("0") && taxID0) {
+                        if (appendTaxid) {
+                            mappwriter.write(splitLine[accCol - 1] + outSep + taxon.toQiimeString() + outSep + splitLine[taxIDCol - 1] + "\n");
+                        } else {
+                            mappwriter.write(splitLine[accCol - 1] + outSep + taxon.toQiimeString() + "\n");
+                        }
+                        oks++;
+
+                    } else {
+                        if (notAtDBWriter == null) {
+                            notAtDBWriter = new FileWriter(output + ".not_at_db");
+                            notAtDBWriter.write("Acc\ttax id\n");
+                        }
+                        notAtDBWriter.write(splitLine[accCol - 1] + "\t" + splitLine[taxIDCol - 1] + "\n");
+                        notAtDB++;
+                    }
+                }
+            } catch (IndexOutOfBoundsException iobe) {
+                /* String splitLine[] = linea.split(splitChars);
+                String taxid = splitLine[taxIDCol - 1];
+                String accession = splitLine[1];*/
+                System.err.println("IndexOutOfBoundsException while split line with char: " + splitChars + " try to find index taxid at col: " + (taxIDCol - 1) + " or index to find acc at col: " + (accCol - 1) + " for line: " + linea);
                 if (errorWriter == null) {
                     errorWriter = new FileWriter(output + ".err");
                     errorWriter.write("Line\tAccession\n");
@@ -401,7 +651,7 @@ public class NCBIFastaMapping {
 
     /**
      * When the program runs on any of the possible modes, it generates an
-     * outputfile with extension .not_at_db. The intention of this method is to
+     * output file with extension .not_at_db. The intention of this method is to
      * take that file and process against possible merged nodes, therefor it
      * will perform the mapping for the tax_id not founded. The input file.
      * myfile.not_at_db is writen as a tsv file with acc and taxid
@@ -533,8 +783,8 @@ public class NCBIFastaMapping {
     }
 
     /**
-     * This method test if any taxid is obsolete and now is merged on other
-     * valid taxid
+     * This method tests if any taxid is obsolete and/or if it is merged with
+     * other valid taxid
      *
      * @param taxid the taxid to be tested
      * @return the new taxid or empty string if not exist
@@ -545,7 +795,7 @@ public class NCBIFastaMapping {
     }
 
     /**
-     * Performs the grep one by one
+     * Method to perform the grep one by one via Process
      *
      * @param accesion the accession to be "greped" against the mapping file
      * @return
@@ -584,11 +834,12 @@ public class NCBIFastaMapping {
     }
 
     /**
-     * Perform grep searchs with more than one accession per time
+     * Perform grep search with more than one accession per time
      *
      * @param accesion the accession numbers in form 'acc1\|acc2\|...\|accN'
-     * @param bulk the number N of accessions
-     * @return
+     * @param bulk the number N of accessions to expect
+     * @return the grep command result. it is expected one line per accession
+     * number
      */
     public String grepBulkAccession(String accesion, int bulk) {
         //String commandLine = "c:/Program Files/R/R-3.0.3/bin/Rscript \"" + workingDir + "scripts/scriptDiversidad.R\" \"" + workingDir + "\" " + nameMatriz + " " + sc.getRealPath("") + fileNameRare + " " + sc.getRealPath("") + fileNameRenyi + " " + betaIndex + " " + sc.getRealPath("") + fileNameBeta + " " + imgExtraTitle;
@@ -629,10 +880,11 @@ public class NCBIFastaMapping {
     }
 
     /**
-     * This method take the rankTYpe class attribute and according to its value
+     * This method take the rankType class attribute and according to its value
      * determines the linage to be searched on the DB
      *
-     * @return
+     * @return a partial query string with the taxonomic rank to be extracted
+     * from the DB
      */
     public String getDesiredLinage() {
         String taxoLevels = "";//ranktype ALL = no extra
@@ -764,7 +1016,7 @@ public class NCBIFastaMapping {
      *
      * @param accessions the accession number that were searched against the
      * mapping DB
-     * @param taxoLevels the desired taxo level
+     * @param taxoLevels the desired taxa level
      * @param bulk the number of accession searched on one single grep
      * @param taxoMapp If it uses hash map, the object in use
      * @throws IOException
